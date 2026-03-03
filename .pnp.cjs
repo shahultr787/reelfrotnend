@@ -57,7 +57,6 @@ const RAW_RUNTIME_STATE =
           ["gh-pages", "npm:6.3.0"],\
           ["micromatch", "npm:4.0.8"],\
           ["mp4-muxer", "npm:5.2.2"],\
-          ["npm-force-resolutions", "npm:0.0.10"],\
           ["postcss", "npm:8.5.6"],\
           ["prop-types", "npm:15.8.1"],\
           ["react", "npm:18.3.1"],\
@@ -14405,7 +14404,6 @@ const RAW_RUNTIME_STATE =
           ["gh-pages", "npm:6.3.0"],\
           ["micromatch", "npm:4.0.8"],\
           ["mp4-muxer", "npm:5.2.2"],\
-          ["npm-force-resolutions", "npm:0.0.10"],\
           ["postcss", "npm:8.5.6"],\
           ["prop-types", "npm:15.8.1"],\
           ["react", "npm:18.3.1"],\
@@ -16120,15 +16118,6 @@ const RAW_RUNTIME_STATE =
         "linkType": "HARD"\
       }]\
     ]],\
-    ["json-format", [\
-      ["npm:1.0.1", {\
-        "packageLocation": "../../../C:/Users/shahul/AppData/Local/Yarn/Berry/cache/json-format-npm-1.0.1-19cdc2ea90-10c0.zip/node_modules/json-format/",\
-        "packageDependencies": [\
-          ["json-format", "npm:1.0.1"]\
-        ],\
-        "linkType": "HARD"\
-      }]\
-    ]],\
     ["json-parse-even-better-errors", [\
       ["npm:2.3.1", {\
         "packageLocation": "../../../C:/Users/shahul/AppData/Local/Yarn/Berry/cache/json-parse-even-better-errors-npm-2.3.1-144d62256e-10c0.zip/node_modules/json-parse-even-better-errors/",\
@@ -17138,18 +17127,6 @@ const RAW_RUNTIME_STATE =
         "packageLocation": "../../../C:/Users/shahul/AppData/Local/Yarn/Berry/cache/normalize-url-npm-6.1.0-b95bc12ece-10c0.zip/node_modules/normalize-url/",\
         "packageDependencies": [\
           ["normalize-url", "npm:6.1.0"]\
-        ],\
-        "linkType": "HARD"\
-      }]\
-    ]],\
-    ["npm-force-resolutions", [\
-      ["npm:0.0.10", {\
-        "packageLocation": "../../../C:/Users/shahul/AppData/Local/Yarn/Berry/cache/npm-force-resolutions-npm-0.0.10-5d75d60fab-10c0.zip/node_modules/npm-force-resolutions/",\
-        "packageDependencies": [\
-          ["npm-force-resolutions", "npm:0.0.10"],\
-          ["json-format", "npm:1.0.1"],\
-          ["source-map-support", "npm:0.5.21"],\
-          ["xmlhttprequest", "npm:1.8.0"]\
         ],\
         "linkType": "HARD"\
       }]\
@@ -23488,15 +23465,6 @@ const RAW_RUNTIME_STATE =
         "packageLocation": "../../../C:/Users/shahul/AppData/Local/Yarn/Berry/cache/xmlchars-npm-2.2.0-8b78f0f5e4-10c0.zip/node_modules/xmlchars/",\
         "packageDependencies": [\
           ["xmlchars", "npm:2.2.0"]\
-        ],\
-        "linkType": "HARD"\
-      }]\
-    ]],\
-    ["xmlhttprequest", [\
-      ["npm:1.8.0", {\
-        "packageLocation": "../../../C:/Users/shahul/AppData/Local/Yarn/Berry/cache/xmlhttprequest-npm-1.8.0-7ac1c8e494-10c0.zip/node_modules/xmlhttprequest/",\
-        "packageDependencies": [\
-          ["xmlhttprequest", "npm:1.8.0"]\
         ],\
         "linkType": "HARD"\
       }]\
