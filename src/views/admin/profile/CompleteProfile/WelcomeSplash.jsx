@@ -15,9 +15,7 @@ const fadeUp = keyframes`
   to   { opacity: 1; transform: translateY(0); }
 `;
 
-const fadeOut = keyframes`
-  to { opacity: 0; transform: translateY(-20px); }
-`;
+
 
 const blink = keyframes`
   0%, 100% { opacity: 1; }

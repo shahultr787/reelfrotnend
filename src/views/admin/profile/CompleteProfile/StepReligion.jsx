@@ -8,7 +8,7 @@
  *  ✅  FieldRow checkmarks on every completed field
  */
 
-import { Box, Flex, SimpleGrid, Text } from "@chakra-ui/react";
+import { Box,  SimpleGrid, Text } from "@chakra-ui/react";
 import { keyframes } from "@chakra-ui/react";
 import FieldRow   from "./FieldRow";
 import PillPicker from "./PillPicker";

@@ -11,7 +11,7 @@
  *   sx        — optional extra Flex sx
  */
 
-import { Box, Flex, Text } from "@chakra-ui/react";
+import { Box, Flex } from "@chakra-ui/react";
 
 export default function PillPicker({ options, value, onChange, sx = {} }) {
   return (

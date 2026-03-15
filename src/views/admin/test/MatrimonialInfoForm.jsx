@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { COLOR_GRADIENTS, FIELD_CONFIG } from "./constants/reelConfig";
+import { COLOR_GRADIENTS } from "./constants/reelConfig";
 import ProfileCard from "./ProfileCard";
 
 const MatrimonialInfoForm = ({ onInfoSubmit, initialData = null }) => {

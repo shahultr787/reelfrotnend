@@ -8,11 +8,11 @@
  *  ✅  Mobile: SimpleGrid replaced with single-column stack on small screens
  */
 
-import { Box, Flex, Input, SimpleGrid, Text } from "@chakra-ui/react";
+import { Box, Input, SimpleGrid, Text } from "@chakra-ui/react";
 import { keyframes } from "@chakra-ui/react";
 import FieldRow    from "./FieldRow";
 import PillPicker  from "./PillPicker";
-import { GENDERS, MARITAL_STATUS } from "./constants";
+import {  MARITAL_STATUS } from "./constants";
 
 const popIn = keyframes`
   0%   { transform: scale(0.9); opacity: 0; }
