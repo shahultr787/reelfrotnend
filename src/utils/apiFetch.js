@@ -1,95 +1,103 @@
 /**
  * utils/apiFetch.js
- *
- * Drop-in fetch wrapper that:
- *  • Automatically retries once after a 401 by calling /api/auth/refresh
- *  • Deduplicates concurrent refresh calls (only one refresh at a time)
- *  • Redirects to /auth/sign-in if refresh fails
- *  • Redirects to /complete-profile on 403 PROFILE_INCOMPLETE (globally)
- *
- * WHY handle PROFILE_INCOMPLETE here?
- *  The backend already BLOCKS the request with a 403 — a hacker gets
- *  nothing. This redirect is purely UX for legitimate users so every
- *  page/component doesn't have to repeat the same check individually.
  */
 
-const API_BASE = process.env.REACT_APP_API_BASE || "";
+const API_LIST = (process.env.REACT_APP_API_BASE || "http://localhost:5000")
+  .split(",")
+  .map((u) => u.trim())
+  .filter(Boolean);
 
-let isRefreshing   = false;
+let isRefreshing = false;
 let refreshPromise = null;
 
+/* ── Header Builder ───────────────────────── */
 const buildHeaders = (options = {}) => {
-  // Don't set Content-Type for FormData — browser sets multipart boundary
   if (options.body instanceof FormData) {
-    return { ...(options.headers || {}) };
+    return {
+      "ngrok-skip-browser-warning": "true",
+      ...(options.headers || {}),
+    };
   }
   return {
     "Content-Type": "application/json",
+    "ngrok-skip-browser-warning": "true",
     ...(options.headers || {}),
   };
 };
 
-export const apiFetch = async (url, options = {}) => {
-  const makeRequest = () =>
-    fetch(`${API_BASE}${url}`, {
-      ...options,
-      credentials: "include",
-      headers: buildHeaders(options),
-    });
+/* ── API Request With Fallback ────────────── */
+const requestWithFallback = async (url, options = {}) => {
+  let lastError;
 
-  let response = await makeRequest();
-
-  /* ── 403 → check if it's a profile-incomplete block ───── */
-  if (response.status === 403) {
-    // Clone before reading — body can only be consumed once
-    const cloned = response.clone();
+  for (const base of API_LIST) {
     try {
-      const data = await cloned.json();
+      const response = await fetch(`${base}${url}`, {
+        ...options,
+        credentials: "include",
+        headers: buildHeaders(options),
+      });
+
+      return { response, base };
+    } catch (err) {
+      console.warn(`API failed at ${base}: ${err.message}`);
+      lastError = err;
+    }
+  }
+
+  throw lastError || new Error("All API endpoints failed.");
+};
+
+/* ── Main Fetch Wrapper ───────────────────── */
+export const apiFetch = async (url, options = {}) => {
+  const makeRequest = () => requestWithFallback(url, options);
+
+  let { response, base } = await makeRequest();
+
+  /* ── 403 PROFILE_INCOMPLETE ─────────────── */
+  if (response.status === 403) {
+    try {
+      const data = await response.clone().json();
       if (data?.code === "PROFILE_INCOMPLETE") {
-        // Backend tells us exactly where to go
         window.location.href = data.redirect || "/complete-profile";
-        // Throw so the calling code doesn't try to process a null response
         throw new Error("Profile completion required.");
       }
     } catch (e) {
-      // If it wasn't PROFILE_INCOMPLETE, fall through to handleResponse
-      // which will throw a proper error with the message
       if (e.message === "Profile completion required.") throw e;
     }
     return handleResponse(response);
   }
 
-  /* ── Not a 401 → return normally ───────────────────────── */
+  /* ── Not a 401 ──────────────────────────── */
   if (response.status !== 401) {
     return handleResponse(response);
   }
 
-  /* ── 401 → try to refresh (deduplicated) ────────────────── */
+  /* ── 401 → Refresh Token (deduplicated) ─── */
   if (!isRefreshing) {
-    isRefreshing   = true;
-    refreshPromise = fetch(`${API_BASE}/api/auth/refresh`, {
-      method:      "POST",
+    isRefreshing = true;
+    refreshPromise = fetch(`${base}/api/auth/refresh`, {
+      method: "POST",
       credentials: "include",
+      headers: { "ngrok-skip-browser-warning": "true" },
     }).finally(() => {
-      isRefreshing   = false;
-      refreshPromise = null;
+      isRefreshing = false;
     });
   }
 
   const refreshResponse = await refreshPromise;
+  refreshPromise = null;
 
-  if (!refreshResponse || !refreshResponse.ok) {
-    // Refresh failed — session is dead
+  if (!refreshResponse?.ok) {
     window.location.href = "/auth/sign-in";
     throw new Error("Session expired. Please sign in again.");
   }
 
-  // Retry the original request with the new access token cookie
-  response = await makeRequest();
+  /* ── Retry Original Request ─────────────── */
+  ({ response } = await makeRequest());
   return handleResponse(response);
 };
 
-/* ── Response normaliser ─────────────────────────────────── */
+/* ── Response Normaliser ─────────────────── */
 const handleResponse = async (response) => {
   if (!response.ok) {
     let message = "Request failed";
@@ -99,14 +107,13 @@ const handleResponse = async (response) => {
     } catch {
       message = (await response.text()) || message;
     }
-    const err    = new Error(message);
-    err.status   = response.status;
+    const err = new Error(message);
+    err.status = response.status;
     throw err;
   }
 
   const contentType = response.headers.get("content-type") || "";
-  if (contentType.includes("application/json")) {
-    return response.json();
-  }
-  return response.text();
+  return contentType.includes("application/json")
+    ? response.json()
+    : response.text();
 };
