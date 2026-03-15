@@ -1,0 +1,837 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Matrimonial Video Generator</title>
+
+<!-- FFmpeg v0.12 UMD — served locally, zero cross-origin issues -->
+<script src="./ffmpeg-local/ffmpeg.js"></script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Nunito:wght@300;400;600;700&display=swap" rel="stylesheet"/>
+
+<style>
+:root {
+  --gold:    #f5c518;
+  --gold2:   #fbbf24;
+  --goldlt:  #fef3c7;
+  --bg0:     #07020f;
+  --bg1:     #0e0520;
+  --bg2:     #1a0533;
+  --glass:   rgba(255,255,255,0.055);
+  --glassbr: rgba(255,255,255,0.10);
+  --border:  rgba(245,197,24,0.28);
+  --radius:  18px;
+  --txt:     rgba(255,255,255,0.88);
+  --txt2:    rgba(255,255,255,0.45);
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+
+body {
+  background: radial-gradient(ellipse 80% 60% at 20% 10%, #1a0533 0%, #07020f 55%, #000 100%);
+  min-height:100vh;
+  font-family:'Nunito',sans-serif;
+  color:var(--txt);
+  overflow-x:hidden;
+}
+
+body::after{
+  content:'';position:fixed;inset:0;pointer-events:none;z-index:999;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23g)' opacity='0.035'/%3E%3C/svg%3E");
+  opacity:.6;
+}
+
+.topline{position:fixed;top:0;left:0;right:0;height:2px;z-index:100;
+  background:linear-gradient(90deg,transparent 0%,var(--gold) 30%,#fff 50%,var(--gold) 70%,transparent 100%);}
+
+.wrap{max-width:1020px;margin:0 auto;padding:48px 18px 100px;position:relative;z-index:1;}
+
+.hdr{text-align:center;margin-bottom:52px;}
+.hdr-eye{
+  font-family:'Cinzel',serif;font-size:10px;letter-spacing:7px;
+  color:var(--gold);text-transform:uppercase;margin-bottom:14px;
+  display:flex;align-items:center;justify-content:center;gap:14px;
+}
+.hdr-eye::before,.hdr-eye::after{content:'';flex:1 1 80px;max-width:80px;height:1px;
+  background:linear-gradient(90deg,transparent,var(--gold));}
+.hdr-eye::after{transform:scaleX(-1);}
+.hdr h1{
+  font-family:'Cinzel',serif;font-size:clamp(26px,4.5vw,50px);font-weight:900;
+  background:linear-gradient(100deg,var(--goldlt),var(--gold2),#fff 50%,var(--gold2),var(--goldlt));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+  line-height:1.08;margin-bottom:10px;
+}
+.hdr p{color:var(--txt2);font-size:13.5px;letter-spacing:.5px;}
+
+.layout{display:grid;grid-template-columns:1fr 380px;gap:28px;align-items:start;}
+@media(max-width:780px){.layout{grid-template-columns:1fr;}}
+
+.panel{
+  background:var(--glass);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  padding:26px 22px;
+  backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  margin-bottom:20px;
+}
+.ptitle{
+  font-family:'Cinzel',serif;font-size:10.5px;letter-spacing:4px;
+  color:var(--gold);text-transform:uppercase;
+  margin-bottom:18px;display:flex;align-items:center;gap:10px;
+}
+.ptitle::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,var(--border),transparent);}
+
+.fg{display:grid;grid-template-columns:1fr 1fr;gap:11px;}
+.fg .fc{grid-column:1/-1;}
+.fl{display:block;font-size:10px;letter-spacing:1.8px;text-transform:uppercase;
+  color:rgba(245,197,24,.7);margin-bottom:5px;}
+input[type=text],input[type=number],select,textarea{
+  width:100%;padding:10px 13px;
+  background:rgba(255,255,255,0.055);
+  border:1px solid rgba(255,255,255,0.11);
+  border-radius:11px;color:#fff;
+  font-family:'Nunito',sans-serif;font-size:14px;
+  outline:none;transition:border-color .18s,background .18s;
+  -webkit-appearance:none;
+  appearance:none;
+}
+input:focus,select:focus,textarea:focus{
+  border-color:var(--gold2);background:rgba(255,255,255,0.09);}
+select option{background:#0e0520;}
+textarea{resize:vertical;min-height:78px;line-height:1.5;}
+
+.drop{
+  border:2px dashed rgba(245,197,24,.32);border-radius:14px;
+  padding:22px 16px;text-align:center;cursor:pointer;
+  transition:border-color .2s,background .2s;position:relative;overflow:hidden;
+}
+.drop:hover,.drop.over{border-color:var(--gold);background:rgba(245,197,24,.04);}
+.drop input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;}
+.drop-icon{font-size:30px;margin-bottom:7px;}
+.drop p{font-size:12.5px;color:var(--txt2);}
+#photoPreview{width:76px;height:76px;border-radius:50%;object-fit:cover;
+  border:3px solid var(--gold2);display:none;margin:0 auto 8px;}
+
+.themes{display:flex;flex-wrap:wrap;gap:10px;margin-top:4px;}
+.tsw{
+  width:34px;height:34px;border-radius:50%;cursor:pointer;
+  border:2px solid transparent;transition:transform .18s,border-color .18s;flex-shrink:0;
+}
+.tsw:hover{transform:scale(1.18);}
+.tsw.on{border-color:#fff;transform:scale(1.22);box-shadow:0 0 0 2px rgba(255,255,255,.3);}
+
+.right{display:flex;flex-direction:column;align-items:center;gap:16px;position:sticky;top:20px;}
+
+.cbox{
+  position:relative;width:260px;height:463px;
+  border-radius:18px;overflow:hidden;
+  border:1px solid var(--border);
+  box-shadow:0 24px 64px rgba(0,0,0,.55),0 0 0 1px rgba(245,197,24,.08);
+}
+canvas{width:260px;height:463px;display:block;}
+.cbadge{
+  position:absolute;top:8px;right:8px;
+  background:rgba(0,0,0,.65);border-radius:20px;
+  padding:3px 10px;font-size:9.5px;letter-spacing:2px;
+  color:var(--gold);text-transform:uppercase;border:1px solid var(--border);
+}
+
+.genbtn{
+  width:100%;padding:15px;
+  background:linear-gradient(135deg,#6d28d9,#a855f7,#db2777);
+  border:none;border-radius:14px;color:#fff;
+  font-family:'Cinzel',serif;font-size:13.5px;font-weight:700;
+  letter-spacing:2.5px;cursor:pointer;text-transform:uppercase;
+  transition:opacity .2s,transform .15s,box-shadow .2s;
+  position:relative;overflow:hidden;
+}
+.genbtn::before{
+  content:'';position:absolute;inset:0;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.18),transparent);
+  transform:translateX(-120%);transition:transform .5s;
+}
+.genbtn:hover::before{transform:translateX(120%);}
+.genbtn:hover{opacity:.92;transform:translateY(-1px);box-shadow:0 8px 28px rgba(168,85,247,.4);}
+.genbtn:disabled{opacity:.4;cursor:not-allowed;transform:none;box-shadow:none;}
+
+.prog-wrap{width:100%;display:none;flex-direction:column;gap:8px;}
+.prog-track{width:100%;height:5px;background:rgba(255,255,255,.08);border-radius:5px;overflow:hidden;}
+.prog-fill{height:100%;width:0%;border-radius:5px;
+  background:linear-gradient(90deg,#6d28d9,var(--gold));transition:width .12s linear;}
+.prog-steps{display:flex;justify-content:space-between;}
+.step{font-size:10px;letter-spacing:.5px;color:var(--txt2);display:flex;align-items:center;gap:5px;}
+.step.done{color:var(--gold);}
+.step.active{color:#fff;}
+.step-dot{width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,.15);}
+.step.done .step-dot{background:var(--gold);}
+.step.active .step-dot{background:#fff;box-shadow:0 0 6px #fff;}
+.stat{font-size:11.5px;color:rgba(245,197,24,.85);letter-spacing:.5px;text-align:center;min-height:17px;}
+
+#dlwrap{display:none;width:100%;text-align:center;}
+#dlwrap a{
+  display:inline-flex;align-items:center;gap:8px;
+  padding:13px 26px;
+  background:linear-gradient(135deg,rgba(245,197,24,.13),rgba(245,197,24,.04));
+  border:1px solid var(--gold);border-radius:13px;
+  color:var(--gold);font-family:'Cinzel',serif;
+  font-size:12px;letter-spacing:2.5px;text-transform:uppercase;
+  text-decoration:none;transition:background .2s,transform .15s;
+}
+#dlwrap a:hover{background:rgba(245,197,24,.2);transform:translateY(-1px);}
+
+.infobox{
+  margin-top:8px;
+  background:rgba(245,197,24,.06);
+  border:1px solid rgba(245,197,24,.18);
+  border-radius:13px;padding:16px 18px;
+  font-size:12px;color:var(--txt2);line-height:1.75;width:100%;
+}
+.infobox strong{color:var(--gold);}
+</style>
+</head>
+<body>
+<div class="topline"></div>
+
+<div class="wrap">
+  <header class="hdr">
+    <div class="hdr-eye">✦ True MP4 · 100% Local · No CDN · No Headers ✦</div>
+    <h1>Matrimonial Video Generator</h1>
+    <p>FFmpeg v0.12 UMD · All files local · Works on http://localhost · No COOP/COEP headers needed</p>
+  </header>
+
+  <div class="layout">
+
+    <!-- LEFT -->
+    <div>
+      <div class="panel">
+        <div class="ptitle">Personal Information</div>
+        <div class="fg">
+          <div class="fc"><label class="fl">Full Name</label>
+            <input type="text" id="f_name" placeholder="e.g. Priya Sharma"></div>
+          <div><label class="fl">Age</label>
+            <input type="text" id="f_age" placeholder="26"></div>
+          <div><label class="fl">Gender</label>
+            <select id="f_gender">
+              <option value="">Select</option>
+              <option>Female</option><option>Male</option><option>Other</option>
+            </select></div>
+          <div><label class="fl">Religion</label>
+            <input type="text" id="f_religion" placeholder="Hindu"></div>
+          <div><label class="fl">Caste</label>
+            <input type="text" id="f_caste" placeholder="Brahmin"></div>
+          <div><label class="fl">Marital Status</label>
+            <select id="f_marital">
+              <option value="">Select</option>
+              <option>Never Married</option><option>Divorced</option><option>Widowed</option>
+            </select></div>
+          <div><label class="fl">Height</label>
+            <input type="text" id="f_height" placeholder="5'5&quot;"></div>
+          <div><label class="fl">Mother Tongue</label>
+            <input type="text" id="f_tongue" placeholder="Hindi"></div>
+          <div><label class="fl">Education</label>
+            <input type="text" id="f_edu" placeholder="MBA"></div>
+          <div><label class="fl">Occupation</label>
+            <input type="text" id="f_occ" placeholder="Software Engineer"></div>
+          <div><label class="fl">City</label>
+            <input type="text" id="f_city" placeholder="Mumbai"></div>
+          <div><label class="fl">State</label>
+            <input type="text" id="f_state" placeholder="Maharashtra"></div>
+          <div class="fc"><label class="fl">Country</label>
+            <input type="text" id="f_country" placeholder="India"></div>
+          <div class="fc"><label class="fl">About Me</label>
+            <textarea id="f_about" placeholder="A brief description about yourself…"></textarea></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="ptitle">Profile Photo</div>
+        <div class="drop" id="dropZone">
+          <input type="file" id="photoInput" accept="image/*" onchange="onPhoto(event)">
+          <img id="photoPreview" alt=""/>
+          <div class="drop-icon">📷</div>
+          <p>Click or drag &amp; drop your photo here</p>
+          <p style="font-size:11px;margin-top:3px;opacity:.6">JPG / PNG · Max 5 MB</p>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="ptitle">Theme</div>
+        <div class="themes" id="themeRow"></div>
+      </div>
+
+      <div class="panel">
+        <div class="ptitle">Background Music</div>
+        <label class="fl">Upload MP3 (optional)</label>
+        <input type="file" id="musicInput" accept="audio/mpeg,audio/mp3,.mp3"
+          style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.11);border-radius:11px;color:#fff;padding:10px 13px;width:100%;font-size:13px;">
+        <p style="font-size:11px;color:var(--txt2);margin-top:6px;">
+          Mixed directly into the MP4 by FFmpeg — no quality loss.</p>
+      </div>
+    </div>
+
+    <!-- RIGHT -->
+    <div class="right">
+      <div class="cbox">
+        <canvas id="cv" width="720" height="1280"></canvas>
+        <div class="cbadge">Preview</div>
+      </div>
+
+      <button class="genbtn" id="genBtn" onclick="generate()">✦ Generate MP4 Video ✦</button>
+
+      <div class="prog-wrap" id="progWrap">
+        <div class="prog-track"><div class="prog-fill" id="progFill"></div></div>
+        <div class="prog-steps">
+          <div class="step" id="st0"><div class="step-dot"></div>Load FFmpeg</div>
+          <div class="step" id="st1"><div class="step-dot"></div>Draw Frames</div>
+          <div class="step" id="st2"><div class="step-dot"></div>Encode MP4</div>
+          <div class="step" id="st3"><div class="step-dot"></div>Done</div>
+        </div>
+        <div class="stat" id="statMsg"></div>
+      </div>
+
+      <div id="dlwrap">
+        <a id="dlLink" href="#">⬇&nbsp; Download MP4</a>
+      </div>
+
+      <div class="infobox">
+        <strong>✓ True H.264 MP4</strong> — plays on WhatsApp, Instagram, every phone.<br>
+        <strong>✓ 100% local files</strong> — run <code>node download-ffmpeg.mjs</code> once to download,
+        then everything runs from <code>http://localhost</code> with no CDN or special headers.<br>
+        <strong>✓ No server needed</strong> — place in React <code>/public</code> folder.<br><br>
+        <strong>⏱ Render time:</strong> ~2–4 min for 20s video.<br>
+        <strong>Browser:</strong> Chrome / Edge / Firefox / Safari
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════
+   THEMES
+═══════════════════════════════════════ */
+const THEMES = [
+  { name:"Royal Purple",  stops:["#1a0533","#3b0764","#6b21a8","#a855f7"], angle:160 },
+  { name:"Deep Rose",     stops:["#1a0010","#4a0020","#9b1a52","#f43f8e"], angle:160 },
+  { name:"Midnight Gold", stops:["#0a0800","#1c1200","#4a3000","#c98a0a"], angle:150 },
+  { name:"Ocean Depths",  stops:["#000d1a","#001840","#003080","#1e90ff"], angle:160 },
+  { name:"Forest Night",  stops:["#001400","#002800","#005500","#22c55e"], angle:150 },
+  { name:"Crimson Dark",  stops:["#190000","#3b0000","#7f1d1d","#ef4444"], angle:160 },
+  { name:"Teal Abyss",    stops:["#00181a","#003038","#006060","#14b8a6"], angle:155 },
+  { name:"Indigo Night",  stops:["#05060f","#0e0f28","#1e1b4b","#6366f1"], angle:160 },
+];
+let activeTheme = 0;
+let userPhotoBitmap = null;
+let rafId = null;
+let frameNo = 0;
+let previewRunning = false;
+
+/* Build swatches */
+const themeRow = document.getElementById('themeRow');
+THEMES.forEach((t, i) => {
+  const el = document.createElement('div');
+  el.className = 'tsw' + (i === 0 ? ' on' : '');
+  el.title = t.name;
+  el.style.background = `linear-gradient(${t.angle}deg,${t.stops[0]},${t.stops[2]},${t.stops[3]})`;
+  el.onclick = () => {
+    document.querySelectorAll('.tsw').forEach(s => s.classList.remove('on'));
+    el.classList.add('on');
+    activeTheme = i;
+  };
+  themeRow.appendChild(el);
+});
+
+/* ═══════════════════════════════════════
+   PHOTO
+═══════════════════════════════════════ */
+function onPhoto(e) {
+  const f = e.target.files[0];
+  if (!f) return;
+  const r = new FileReader();
+  r.onload = ev => {
+    const img = new Image();
+    img.onload = () => {
+      createImageBitmap(img).then(b => { userPhotoBitmap = b; });
+      const pv = document.getElementById('photoPreview');
+      pv.src = ev.target.result;
+      pv.style.display = 'block';
+    };
+    img.src = ev.target.result;
+  };
+  r.readAsDataURL(f);
+}
+
+const dz = document.getElementById('dropZone');
+dz.addEventListener('dragover',  e => { e.preventDefault(); dz.classList.add('over'); });
+dz.addEventListener('dragleave', () => dz.classList.remove('over'));
+dz.addEventListener('drop', e => {
+  e.preventDefault(); dz.classList.remove('over');
+  const f = e.dataTransfer.files[0];
+  if (f) { document.getElementById('photoInput').files = e.dataTransfer.files; onPhoto({ target: { files: [f] } }); }
+});
+
+/* ═══════════════════════════════════════
+   FORM
+═══════════════════════════════════════ */
+function getInfo() {
+  return {
+    name:          v('f_name'),
+    age:           v('f_age'),
+    gender:        v('f_gender'),
+    religion:      v('f_religion'),
+    caste:         v('f_caste'),
+    education:     v('f_edu'),
+    occupation:    v('f_occ'),
+    city:          v('f_city'),
+    state:         v('f_state'),
+    country:       v('f_country'),
+    maritalStatus: v('f_marital'),
+    height:        v('f_height'),
+    motherTongue:  v('f_tongue'),
+    about:         v('f_about'),
+  };
+}
+function v(id) { return document.getElementById(id).value.trim(); }
+
+/* ═══════════════════════════════════════
+   CANVAS RENDERER  (720 × 1280)
+═══════════════════════════════════════ */
+const cv  = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+const W = 720, H = 1280, FPS = 30, TOTAL = FPS * 20;
+
+const eo3 = t => 1 - Math.pow(1 - t, 3);
+function lrp(f, f0, f1, v0, v1) {
+  const t = Math.min(Math.max((f - f0) / (f1 - f0), 0), 1);
+  return v0 + eo3(t) * (v1 - v0);
+}
+function spr(f) {
+  const t = Math.min(f / (FPS * 0.55), 1);
+  return 1 - Math.exp(-80 / 120 * t * 9) * Math.cos(t * Math.sqrt(120) * 0.48);
+}
+function rr(x, y, w, h, r) {
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y); ctx.arcTo(x + w, y, x + w, y + r, r);
+  ctx.lineTo(x + w, y + h - r); ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
+  ctx.lineTo(x + r, y + h); ctx.arcTo(x, y + h, x, y + h - r, r);
+  ctx.lineTo(x, y + r); ctx.arcTo(x, y, x + r, y, r);
+  ctx.closePath();
+}
+function wrapText(text, x, y, maxW, lh, maxL) {
+  const words = text.split(' '); let line = '', count = 0;
+  for (const w of words) {
+    const t = line ? line + ' ' + w : w;
+    if (ctx.measureText(t).width > maxW && line) {
+      if (count >= maxL - 1) { ctx.fillText(line + '…', x, y); return; }
+      ctx.fillText(line, x, y); line = w; y += lh; count++;
+    } else line = t;
+  }
+  if (line) ctx.fillText(line, x, y);
+}
+
+function drawFrame(f, info, themeIdx) {
+  const T = THEMES[themeIdx];
+  ctx.clearRect(0, 0, W, H);
+
+  /* BG gradient */
+  const ang = (T.angle - 90) * Math.PI / 180;
+  const grd = ctx.createLinearGradient(
+    W / 2 + W * Math.cos(ang + Math.PI) * 0.7, H / 2 + H * Math.sin(ang + Math.PI) * 0.7,
+    W / 2 + W * Math.cos(ang) * 0.7,           H / 2 + H * Math.sin(ang) * 0.7
+  );
+  grd.addColorStop(0, T.stops[0]); grd.addColorStop(0.35, T.stops[1]);
+  grd.addColorStop(0.7, T.stops[2]); grd.addColorStop(1, T.stops[3]);
+  ctx.fillStyle = grd; ctx.fillRect(0, 0, W, H);
+
+  /* Radial glow */
+  const rg = ctx.createRadialGradient(W / 2, H * .27, 0, W / 2, H * .27, 480);
+  rg.addColorStop(0, 'rgba(168,85,247,0.42)'); rg.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = rg; ctx.fillRect(0, 0, W, H);
+
+  /* Top gold strip */
+  const gs = ctx.createLinearGradient(0, 0, W, 0);
+  gs.addColorStop(0, 'transparent'); gs.addColorStop(.3, 'rgba(255,215,100,.9)');
+  gs.addColorStop(.5, 'rgba(255,185,50,1)'); gs.addColorStop(.7, 'rgba(255,215,100,.9)');
+  gs.addColorStop(1, 'transparent');
+  ctx.fillStyle = gs; ctx.fillRect(0, 0, W, 3);
+
+  /* Mandala rings */
+  const CX = W / 2, CY = H * .267;
+  [
+    [130, 12, .4,  .35, 'rgba(255,215,100,.55)'],
+    [165, 18, -.3, .25, 'rgba(200,150,255,.5)'],
+    [200, 24, .2,  .18, 'rgba(255,255,255,.4)'],
+    [230, 8,  .6,  .2,  'rgba(255,215,100,.5)'],
+  ].forEach(([r, petals, spd, op, col]) => {
+    const angle = (f * spd * Math.PI) / 180;
+    ctx.beginPath();
+    for (let i = 0; i < petals; i++) {
+      const a = (i / petals) * Math.PI * 2 + angle;
+      const x = CX + r * Math.cos(a), y = CY + r * Math.sin(a);
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    }
+    ctx.closePath();
+    ctx.strokeStyle = col; ctx.globalAlpha = op; ctx.lineWidth = 1.5; ctx.stroke();
+    ctx.globalAlpha = 1;
+  });
+
+  /* Sparkles */
+  [
+    [60,80,8,0],[660,120,6,15],[110,490,7,30],[620,460,9,10],
+    [360,44,5,22],[46,285,6,40],[672,272,7,5],[248,526,8,35],[494,58,5,50]
+  ].forEach(([sx, sy, sz, sd]) => {
+    const t = ((f + sd) % 60) / 60, op = Math.sin(t * Math.PI), sc = .5 + op * .5;
+    ctx.save(); ctx.globalAlpha = op * .88; ctx.translate(sx, sy); ctx.scale(sc, sc);
+    ctx.beginPath();
+    [[0,-sz],[sz*.3,-sz*.3],[sz,0],[sz*.3,sz*.3],[0,sz],[-sz*.3,sz*.3],[-sz,0],[-sz*.3,-sz*.3]]
+      .forEach(([px, py], i) => i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py));
+    ctx.closePath(); ctx.fillStyle = 'rgba(255,230,100,.9)'; ctx.fill();
+    ctx.restore(); ctx.globalAlpha = 1;
+  });
+
+  /* Bottom arch */
+  ctx.beginPath(); ctx.ellipse(W / 2, H + 110, 520, 200, 0, 0, Math.PI * 2);
+  ctx.strokeStyle = 'rgba(255,215,100,.18)'; ctx.lineWidth = 2; ctx.stroke();
+
+  /* Brand text */
+  const bOp = lrp(f, 0, 18, 0, 1);
+  ctx.globalAlpha = bOp;
+  ctx.fillStyle = 'rgba(255,215,100,.75)';
+  ctx.font = '600 21px "Cinzel",serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('✦  Matrimonial Profile  ✦', W / 2, 62);
+  ctx.globalAlpha = 1;
+
+  /* Photo circle */
+  const pOp = lrp(f, 0, 18, 0, 1);
+  const pSc = spr(f);
+  const R = 140;
+
+  ctx.save(); ctx.globalAlpha = pOp;
+  ctx.translate(CX, CY); ctx.scale(pSc, pSc); ctx.translate(-CX, -CY);
+
+  ['#f59e0b', '#a855f7', '#ec4899', '#f59e0b'].forEach((c, i) => {
+    ctx.beginPath();
+    ctx.arc(CX, CY, R + 13, (i / 4) * Math.PI * 2, ((i + 1) / 4) * Math.PI * 2);
+    ctx.strokeStyle = c; ctx.lineWidth = 9; ctx.globalAlpha = pOp * .75; ctx.stroke();
+  });
+
+  const gg = ctx.createRadialGradient(CX, CY, R - 2, CX, CY, R + 18);
+  gg.addColorStop(0, 'rgba(251,191,36,.5)'); gg.addColorStop(1, 'rgba(168,85,247,0)');
+  ctx.globalAlpha = pOp * .55; ctx.beginPath(); ctx.arc(CX, CY, R + 18, 0, Math.PI * 2);
+  ctx.fillStyle = gg; ctx.fill();
+
+  ctx.globalAlpha = pOp;
+  const bg = ctx.createLinearGradient(CX - R, CY - R, CX + R, CY + R);
+  bg.addColorStop(0, '#fbbf24'); bg.addColorStop(.5, '#a855f7'); bg.addColorStop(1, '#ec4899');
+  ctx.beginPath(); ctx.arc(CX, CY, R + 5, 0, Math.PI * 2); ctx.fillStyle = bg; ctx.fill();
+  ctx.beginPath(); ctx.arc(CX, CY, R + 2, 0, Math.PI * 2); ctx.fillStyle = '#fff'; ctx.fill();
+
+  ctx.save(); ctx.beginPath(); ctx.arc(CX, CY, R - 1, 0, Math.PI * 2); ctx.clip();
+  if (userPhotoBitmap) {
+    const d = (R - 1) * 2; ctx.drawImage(userPhotoBitmap, CX - (R - 1), CY - (R - 1), d, d);
+  } else {
+    const pg = ctx.createLinearGradient(CX - R, CY - R, CX + R, CY + R);
+    pg.addColorStop(0, '#6b21a8'); pg.addColorStop(1, '#a855f7');
+    ctx.fillStyle = pg; ctx.fillRect(CX - R, CY - R, R * 2, R * 2);
+    ctx.font = `${R * .72}px serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('👤', CX, CY + 3); ctx.textBaseline = 'alphabetic';
+  }
+  ctx.restore(); ctx.restore(); ctx.globalAlpha = 1;
+
+  /* Name */
+  const nOp = lrp(f, 18, 40, 0, 1), nY = lrp(f, 18, 45, 28, 0);
+  const baseY = CY + R + 48;
+  ctx.save(); ctx.globalAlpha = nOp; ctx.translate(0, nY);
+
+  const nameText = info.name || 'Your Name';
+  const nameGrd = ctx.createLinearGradient(W * .15, 0, W * .85, 0);
+  nameGrd.addColorStop(0, '#fef9c3'); nameGrd.addColorStop(.3, '#fbbf24');
+  nameGrd.addColorStop(.5, '#fff'); nameGrd.addColorStop(.7, '#fbbf24');
+  nameGrd.addColorStop(1, '#fef9c3');
+  ctx.fillStyle = nameGrd; ctx.textAlign = 'center';
+  let fs = 60; ctx.font = `bold ${fs}px "Cinzel",serif`;
+  while (ctx.measureText(nameText).width > 660 && fs > 26) { fs -= 2; ctx.font = `bold ${fs}px "Cinzel",serif`; }
+  ctx.fillText(nameText, W / 2, baseY);
+
+  const dw = lrp(f, 45, 75, 0, 340);
+  const dg = ctx.createLinearGradient(W / 2 - dw / 2, 0, W / 2 + dw / 2, 0);
+  dg.addColorStop(0, 'transparent'); dg.addColorStop(.3, '#fbbf24');
+  dg.addColorStop(.5, '#fff'); dg.addColorStop(.7, '#fbbf24'); dg.addColorStop(1, 'transparent');
+  ctx.fillStyle = dg; ctx.fillRect(W / 2 - dw / 2, baseY + 13, dw, 3);
+
+  if (info.age) {
+    ctx.fillStyle = 'rgba(255,230,150,.9)';
+    ctx.font = '300 26px "Nunito",sans-serif';
+    ctx.fillText(`${info.age} YEARS`, W / 2, baseY + 46);
+  }
+  ctx.restore(); ctx.globalAlpha = 1;
+
+  /* Cards */
+  const CARDS = [
+    info.age          && { l:'Age',           v:info.age,           ic:'🎂', d:55  },
+    info.religion     && { l:'Religion',       v:info.religion,      ic:'🕌', d:62  },
+    info.caste        && { l:'Caste',          v:info.caste,         ic:'🏛', d:69  },
+    info.education    && { l:'Education',      v:info.education,     ic:'🎓', d:76  },
+    info.occupation   && { l:'Occupation',     v:info.occupation,    ic:'💼', d:83  },
+    info.city         && { l:'City',           v:info.city,          ic:'🏙', d:90  },
+    info.state        && { l:'State',          v:info.state,         ic:'📍', d:97  },
+    info.country      && { l:'Country',        v:info.country,       ic:'🌍', d:97  },
+    info.height       && { l:'Height',         v:info.height,        ic:'📏', d:104 },
+    info.motherTongue && { l:'Mother Tongue',  v:info.motherTongue,  ic:'🗣', d:104 },
+    info.maritalStatus&& { l:'Status',         v:info.maritalStatus, ic:'💍', d:111 },
+    info.gender       && { l:'Gender',         v:info.gender,        ic:'✨', d:111 },
+  ].filter(Boolean).slice(0, 12);
+
+  const cardY0 = baseY + (info.age ? 76 : 36);
+  const CW = 310, CH = 74, CGAP = 13, COLS = 2;
+  const gridX = (W - (COLS * CW + CGAP)) / 2;
+
+  CARDS.forEach((c, idx) => {
+    const col = idx % COLS, row = Math.floor(idx / COLS);
+    const x = gridX + col * (CW + CGAP), y = cardY0 + row * (CH + CGAP);
+    const sy = lrp(f, c.d, c.d + 30, 58, 0), op = lrp(f, c.d, c.d + 25, 0, 1);
+    if (op <= 0) return;
+    ctx.save(); ctx.globalAlpha = op; ctx.translate(0, sy);
+    ctx.beginPath(); rr(x, y, CW, CH, 15);
+    const cg = ctx.createLinearGradient(x, y, x + CW, y + CH);
+    cg.addColorStop(0, 'rgba(255,255,255,.15)'); cg.addColorStop(1, 'rgba(255,255,255,.04)');
+    ctx.fillStyle = cg; ctx.fill();
+    ctx.strokeStyle = 'rgba(255,215,100,.28)'; ctx.lineWidth = 1; ctx.stroke();
+    ctx.fillStyle = 'rgba(255,215,100,.82)';
+    ctx.font = '600 16px "Nunito",sans-serif'; ctx.textAlign = 'left';
+    ctx.fillText(`${c.ic}  ${c.l.toUpperCase()}`, x + 13, y + 24);
+    ctx.fillStyle = '#fff'; ctx.font = 'bold 21px "Nunito",sans-serif';
+    let val = c.v;
+    while (ctx.measureText(val).width > CW - 26 && val.length > 4) val = val.slice(0, -2) + '…';
+    ctx.fillText(val, x + 13, y + 53);
+    ctx.restore(); ctx.globalAlpha = 1;
+  });
+
+  /* About */
+  if (info.about) {
+    const rows = Math.ceil(Math.min(CARDS.length, 12) / 2);
+    const ay = cardY0 + rows * (CH + CGAP) + 14;
+    const aop = lrp(f, 115, 135, 0, 1), asl = lrp(f, 115, 135, 28, 0);
+    const aw = COLS * CW + CGAP, ah = 114;
+    if (aop > 0 && ay + ah < H - 100) {
+      ctx.save(); ctx.globalAlpha = aop; ctx.translate(0, asl);
+      ctx.beginPath(); rr(gridX, ay, aw, ah, 15);
+      const ag = ctx.createLinearGradient(gridX, ay, gridX + aw, ay + ah);
+      ag.addColorStop(0, 'rgba(255,255,255,.12)'); ag.addColorStop(1, 'rgba(255,255,255,.04)');
+      ctx.fillStyle = ag; ctx.fill();
+      ctx.strokeStyle = 'rgba(255,215,100,.25)'; ctx.lineWidth = 1; ctx.stroke();
+      ctx.fillStyle = 'rgba(255,215,100,.8)';
+      ctx.font = '600 15px "Nunito",sans-serif'; ctx.textAlign = 'left';
+      ctx.fillText('✦  About Me', gridX + 13, ay + 21);
+      ctx.fillStyle = 'rgba(255,255,255,.88)'; ctx.font = '400 17px "Nunito",sans-serif';
+      wrapText(info.about, gridX + 13, ay + 44, aw - 26, 22, 2);
+      ctx.restore(); ctx.globalAlpha = 1;
+    }
+  }
+
+  /* CTA banner */
+  const ctaOp = lrp(f, 400, 440, 0, 1);
+  const pulse = 1 + Math.sin((f / FPS) * Math.PI * 2) * .013;
+  if (ctaOp > 0) {
+    ctx.save(); ctx.globalAlpha = ctaOp;
+    ctx.translate(W / 2, H - 44); ctx.scale(pulse, pulse); ctx.translate(-W / 2, -(H - 44));
+    ctx.fillStyle = 'rgba(80,0,120,.95)'; ctx.fillRect(0, H - 88, W, 88);
+    const cl = ctx.createLinearGradient(0, 0, W, 0);
+    cl.addColorStop(0, 'transparent'); cl.addColorStop(.5, 'rgba(255,215,100,.35)'); cl.addColorStop(1, 'transparent');
+    ctx.fillStyle = cl; ctx.fillRect(0, H - 89, W, 1);
+    const ctg = ctx.createLinearGradient(W * .2, 0, W * .8, 0);
+    ctg.addColorStop(0, '#fef9c3'); ctg.addColorStop(.5, '#fff'); ctg.addColorStop(1, '#fef9c3');
+    ctx.fillStyle = ctg; ctx.font = 'bold 30px "Cinzel",serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('❤️  Share & Follow for More  ❤️', W / 2, H - 44);
+    ctx.textBaseline = 'alphabetic'; ctx.restore(); ctx.globalAlpha = 1;
+  }
+}
+
+/* ═══════════════════════════════════════
+   LIVE PREVIEW LOOP
+═══════════════════════════════════════ */
+function startPreview() {
+  if (previewRunning) return;
+  previewRunning = true;
+  let last = 0;
+  const loop = ts => {
+    if (!previewRunning) return;
+    if (ts - last >= 1000 / FPS) {
+      frameNo = (frameNo + 1) % TOTAL;
+      drawFrame(frameNo, getInfo(), activeTheme);
+      last = ts;
+    }
+    rafId = requestAnimationFrame(loop);
+  };
+  rafId = requestAnimationFrame(loop);
+}
+function stopPreview() { previewRunning = false; if (rafId) cancelAnimationFrame(rafId); }
+startPreview();
+
+/* ═══════════════════════════════════════
+   STEP / PROGRESS HELPERS
+═══════════════════════════════════════ */
+function setStep(idx) {
+  for (let i = 0; i < 4; i++) {
+    const el = document.getElementById('st' + i);
+    el.className = 'step' + (i < idx ? ' done' : i === idx ? ' active' : '');
+  }
+}
+function setProg(pct, msg) {
+  document.getElementById('progFill').style.width = pct + '%';
+  document.getElementById('statMsg').textContent = msg;
+}
+
+/* ═══════════════════════════════════════
+   CANVAS → JPEG BLOB
+═══════════════════════════════════════ */
+function canvasToBlob(quality = 0.88) {
+  return new Promise(res => cv.toBlob(res, 'image/jpeg', quality));
+}
+function blobToUint8(blob) {
+  return blob.arrayBuffer().then(ab => new Uint8Array(ab));
+}
+
+/* ═══════════════════════════════════════
+   GENERATE — uses FFmpeg v0.12 API
+   Key differences from v0.11:
+     - new FFmpeg()  (not createFFmpeg())
+     - ffmpeg.load({ coreURL, wasmURL })
+     - ffmpeg.writeFile() / ffmpeg.readFile() / ffmpeg.deleteFile()
+     - ffmpeg.exec([...args])  (not ffmpeg.run())
+     - ffmpeg.on('progress', ...)  (not progress callback in load)
+═══════════════════════════════════════ */
+async function generate() {
+  const btn      = document.getElementById('genBtn');
+  const progWrap = document.getElementById('progWrap');
+  const dlwrap   = document.getElementById('dlwrap');
+
+  btn.disabled = true;
+  progWrap.style.display = 'flex';
+  dlwrap.style.display = 'none';
+  stopPreview();
+
+  const info     = getInfo();
+  const themeIdx = activeTheme;
+
+  try {
+    /* ── STEP 0: Load FFmpeg v0.12 ── */
+    setStep(0); setProg(0, 'Loading FFmpeg…');
+
+    // Detect which global the UMD build used — v0.12 uses FFmpegWASM, some builds use FFmpeg
+    const FFmpegNS = window.FFmpegWASM || window.FFmpeg || window['@ffmpeg/ffmpeg'];
+    if (!FFmpegNS || !FFmpegNS.FFmpeg) {
+      // Log all globals to help debug
+      const keys = Object.keys(window).filter(k => k.toLowerCase().includes('ffmpeg'));
+      throw new Error(
+        'FFmpeg UMD not loaded. ffmpeg-local/ffmpeg.js must be in the same folder as video.html. ' +
+        'FFmpeg-related globals found: [' + keys.join(', ') + ']'
+      );
+    }
+
+    const { FFmpeg } = FFmpegNS;
+    const ffmpeg = new FFmpeg();
+
+    // Progress event (v0.12 style)
+    ffmpeg.on('progress', ({ progress }) => {
+      const pct = Math.round(50 + progress * 45);
+      setProg(pct, `Encoding MP4… ${Math.round(progress * 100)}%`);
+    });
+
+    // All files local — no cross-origin issues. Include workerURL for ffmpeg-core.worker.js
+    await ffmpeg.load({
+      coreURL:   './ffmpeg-local/ffmpeg-core.js',
+      wasmURL:   './ffmpeg-local/ffmpeg-core.wasm',
+      workerURL: './ffmpeg-local/ffmpeg-core.worker.js',
+    });
+    setProg(8, 'FFmpeg loaded ✓');
+
+    /* ── STEP 1: Draw all frames & write to FFmpeg FS ── */
+    setStep(1); setProg(10, 'Drawing frames…');
+
+    for (let i = 0; i < TOTAL; i++) {
+      drawFrame(i, info, themeIdx);
+      const blob = await canvasToBlob(0.88);
+      const data = await blobToUint8(blob);
+      const name = `frame${String(i).padStart(3, '0')}.jpg`;
+      await ffmpeg.writeFile(name, data); // v0.12 uses writeFile() (async)
+
+      if (i % 10 === 0) {
+        const pct = 10 + Math.round((i / TOTAL) * 38);
+        setProg(pct, `Drawing frames… ${i} / ${TOTAL}`);
+        await new Promise(r => setTimeout(r, 0)); // yield to browser
+      }
+    }
+    setProg(48, 'All frames drawn ✓');
+
+    /* ── Optional music ── */
+    const musicFile = document.getElementById('musicInput').files[0];
+    let hasMusic = false;
+    if (musicFile) {
+      try {
+        setProg(49, 'Loading music…');
+        const mdata = new Uint8Array(await musicFile.arrayBuffer());
+        await ffmpeg.writeFile('music.mp3', mdata);
+        hasMusic = true;
+      } catch (e) { console.warn('Music load failed:', e); }
+    }
+
+    /* ── STEP 2: Encode MP4 ── */
+    setStep(2); setProg(50, 'Encoding H.264 MP4…');
+
+    const args = [
+      '-framerate', String(FPS),
+      '-i', 'frame%03d.jpg',
+      ...(hasMusic ? [
+        '-stream_loop', '-1',
+        '-i', 'music.mp3',
+        '-shortest',
+        '-map', '0:v', '-map', '1:a',
+        '-af', 'afade=t=out:st=18:d=2',
+      ] : []),
+      '-c:v', 'libx264',
+      '-preset', 'ultrafast',
+      '-crf', '23',
+      '-pix_fmt', 'yuv420p',      // max compatibility: WhatsApp, iOS, Android
+      '-movflags', '+faststart',  // web streaming friendly
+      ...(hasMusic ? ['-c:a', 'aac', '-b:a', '128k'] : []),
+      'output.mp4',
+    ];
+
+    await ffmpeg.exec(args); // v0.12 uses exec([]) not run(...)
+    setProg(96, 'Encoding done ✓');
+
+    /* ── STEP 3: Read file & download ── */
+    setStep(3); setProg(98, 'Preparing download…');
+
+    const outData = await ffmpeg.readFile('output.mp4'); // v0.12 readFile() is async
+    const blob    = new Blob([outData.buffer], { type: 'video/mp4' });
+    const url     = URL.createObjectURL(blob);
+
+    const dl = document.getElementById('dlLink');
+    dl.href = url; dl.download = 'matrimonial_profile.mp4';
+    dlwrap.style.display = 'block';
+    setProg(100, `✓ Done! ${(blob.size / 1024 / 1024).toFixed(1)} MB · True H.264 MP4`);
+
+    /* Cleanup FS */
+    for (let i = 0; i < TOTAL; i++) {
+      try { await ffmpeg.deleteFile(`frame${String(i).padStart(3, '0')}.jpg`); } catch (_) {}
+    }
+    if (hasMusic) { try { await ffmpeg.deleteFile('music.mp3'); } catch (_) {} }
+    try { await ffmpeg.deleteFile('output.mp4'); } catch (_) {}
+
+  } catch (err) {
+    console.error(err);
+    setProg(0, '❌ Error: ' + err.message);
+    setStep(0);
+  } finally {
+    btn.disabled = false;
+    setTimeout(startPreview, 600);
+  }
+}
+</script>
+</body>
+</html>

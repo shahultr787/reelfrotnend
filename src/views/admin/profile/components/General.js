@@ -35,7 +35,7 @@ export default function GeneralInformation(props) {
       setLoading(true);
       setResult("");
 
-      const data = await apiFetch("/api/profile");
+      const data = await apiFetch("/api/video");
 
       setResult(JSON.stringify(data, null, 2));
     } catch (err) {
