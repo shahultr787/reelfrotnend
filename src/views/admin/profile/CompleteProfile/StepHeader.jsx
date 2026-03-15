@@ -7,7 +7,7 @@ import { Box, Flex, Text } from "@chakra-ui/react";
 import { STEPS } from "./constants";
 
 const STEP_META = [
-  { icon: "👤", sub: "Tell us who you are" },
+  { icon: "👤", sub: "Tell us who you Are" },
   { icon: "🕌", sub: "Your Islamic background" },
   { icon: "🎓", sub: "Your education & work" },
   { icon: "📍", sub: "Where you call home" },
