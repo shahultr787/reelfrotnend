@@ -1,119 +1,138 @@
 /**
  * utils/apiFetch.js
+ *
+ * Matches the backend TOKEN_MODE automatically via REACT_APP_TOKEN_MODE.
+ *
+ * In your frontend .env:
+ *   REACT_APP_TOKEN_MODE=DEV   → Bearer header mode (cross-origin safe)
+ *   REACT_APP_TOKEN_MODE=PROD  → Cookie mode (production)
+ *
+ * Keep REACT_APP_TOKEN_MODE in sync with your backend TOKEN_MODE.
+ * That's the only thing you ever need to change.
  */
 
 const API_LIST = (process.env.REACT_APP_API_BASE || "http://localhost:5000")
-  .split(",")
-  .map((u) => u.trim())
-  .filter(Boolean);
+  .split(",").map(u => u.trim()).filter(Boolean);
 
-let isRefreshing = false;
-let refreshPromise = null;
+const IS_DEV = (process.env.REACT_APP_TOKEN_MODE || "PROD").toUpperCase() === "DEV";
 
-/* ── Header Builder ───────────────────────── */
-const buildHeaders = (options = {}) => {
-  if (options.body instanceof FormData) {
-    return {
-      "ngrok-skip-browser-warning": "true",
-      ...(options.headers || {}),
-    };
-  }
-  return {
-    "Content-Type": "application/json",
-    "ngrok-skip-browser-warning": "true",
-    ...(options.headers || {}),
-  };
+/* ── In-memory token store (DEV / bearer mode only) ─────────
+ *
+ *  Tokens live in a plain JS variable — never localStorage.
+ *  They're lost on page refresh, which triggers a silent
+ *  /api/auth/refresh call automatically.
+ * ────────────────────────────────────────────────────────── */
+let _accessToken  = null;
+let _refreshToken = null;
+
+export const saveTokens  = (at, rt) => { _accessToken = at; if (rt) _refreshToken = rt; };
+export const forgetTokens = ()       => { _accessToken = null; _refreshToken = null; };
+
+/* ── Refresh dedup ───────────────────────────────────────── */
+let _refreshing = false;
+let _refreshP   = null;
+
+/* ── Helpers ─────────────────────────────────────────────── */
+const isNgrok = (url) => url.includes("ngrok-free.app") || url.includes("ngrok.io");
+
+const buildHeaders = (options = {}, base = "") => {
+  const h = { ...(options.headers || {}) };
+
+  if (!(options.body instanceof FormData)) h["Content-Type"] = "application/json";
+  if (isNgrok(base))    h["ngrok-skip-browser-warning"] = "true";
+  if (IS_DEV && _accessToken) h["Authorization"] = `Bearer ${_accessToken}`;
+
+  return h;
 };
 
-/* ── API Request With Fallback ────────────── */
-const requestWithFallback = async (url, options = {}) => {
-  let lastError;
-
+const tryFetch = async (url, options = {}) => {
+  let lastErr;
   for (const base of API_LIST) {
     try {
-      const response = await fetch(`${base}${url}`, {
+      const res = await fetch(`${base}${url}`, {
         ...options,
         credentials: "include",
-        headers: buildHeaders(options),
+        headers: buildHeaders(options, base),
       });
 
-      return { response, base };
-    } catch (err) {
-      console.warn(`API failed at ${base}: ${err.message}`);
-      lastError = err;
-    }
-  }
+      // Guard against ngrok HTML warning page
+      const ct = res.headers.get("content-type") || "";
+      if (ct.includes("text/html")) {
+        const t = await res.text();
+        if (t.toLowerCase().includes("ngrok"))
+          throw new Error(`ngrok warning page at ${base} — check headers`);
+      }
 
-  throw lastError || new Error("All API endpoints failed.");
+      return { res, base };
+    } catch (e) { lastErr = e; }
+  }
+  throw lastErr || new Error("All API endpoints failed");
 };
 
-/* ── Main Fetch Wrapper ───────────────────── */
+const parseResponse = async (res) => {
+  if (!res.ok) {
+    const ct  = res.headers.get("content-type") || "";
+    const msg = ct.includes("application/json")
+      ? (await res.json()).message || "Request failed"
+      : await res.text();
+    const err  = new Error(msg);
+    err.status = res.status;
+    throw err;
+  }
+  const ct = res.headers.get("content-type") || "";
+  return ct.includes("application/json") ? res.json() : res.text();
+};
+
+const doRefresh = async (base) => {
+  const body    = IS_DEV && _refreshToken ? JSON.stringify({ refreshToken: _refreshToken }) : undefined;
+  const headers = buildHeaders({}, base);
+
+  const resp = await fetch(`${base}/api/auth/refresh`, {
+    method: "POST", credentials: "include", headers, body,
+  });
+
+  if (!resp.ok) return null;
+
+  const data = await resp.json();
+  if (IS_DEV && data.accessToken) saveTokens(data.accessToken, data.refreshToken);
+  return data;
+};
+
+/* ── Main export ─────────────────────────────────────────── */
 export const apiFetch = async (url, options = {}) => {
-  const makeRequest = () => requestWithFallback(url, options);
+  let { res, base } = await tryFetch(url, options);
 
-  let { response, base } = await makeRequest();
-
-  /* ── 403 PROFILE_INCOMPLETE ─────────────── */
-  if (response.status === 403) {
+  // 403 PROFILE_INCOMPLETE
+  if (res.status === 403) {
     try {
-      const data = await response.clone().json();
-      if (data?.code === "PROFILE_INCOMPLETE") {
-        window.location.href = data.redirect || "/complete-profile";
+      const d = await res.clone().json();
+      if (d?.code === "PROFILE_INCOMPLETE") {
+        window.location.href = d.redirect || "/complete-profile";
         throw new Error("Profile completion required.");
       }
-    } catch (e) {
-      if (e.message === "Profile completion required.") throw e;
-    }
-    return handleResponse(response);
+    } catch (e) { if (e.message === "Profile completion required.") throw e; }
+    return parseResponse(res);
   }
 
-  /* ── Not a 401 ──────────────────────────── */
-  if (response.status !== 401) {
-    return handleResponse(response);
+  if (res.status !== 401) return parseResponse(res);
+
+  // 401 → refresh (deduplicated)
+  if (!_refreshing) {
+    _refreshing = true;
+    _refreshP   = doRefresh(base).finally(() => { _refreshing = false; });
   }
 
-  /* ── 401 → Refresh Token (deduplicated) ─── */
-  if (!isRefreshing) {
-    isRefreshing = true;
-    refreshPromise = fetch(`${base}/api/auth/refresh`, {
-      method: "POST",
-      credentials: "include",
-      headers: { "ngrok-skip-browser-warning": "true" },
-    }).finally(() => {
-      isRefreshing = false;
-    });
-  }
+  const refreshed = await _refreshP;
+  _refreshP = null;
 
-  const refreshResponse = await refreshPromise;
-  refreshPromise = null;
-
-  if (!refreshResponse?.ok) {
+  if (!refreshed) {
+    forgetTokens();
     window.location.href = "/auth/sign-in";
     throw new Error("Session expired. Please sign in again.");
   }
 
-  /* ── Retry Original Request ─────────────── */
-  ({ response } = await makeRequest());
-  return handleResponse(response);
+  ({ res } = await tryFetch(url, options));
+  return parseResponse(res);
 };
 
-/* ── Response Normaliser ─────────────────── */
-const handleResponse = async (response) => {
-  if (!response.ok) {
-    let message = "Request failed";
-    try {
-      const data = await response.json();
-      message = data.message || message;
-    } catch {
-      message = (await response.text()) || message;
-    }
-    const err = new Error(message);
-    err.status = response.status;
-    throw err;
-  }
-
-  const contentType = response.headers.get("content-type") || "";
-  return contentType.includes("application/json")
-    ? response.json()
-    : response.text();
-};
+export default apiFetch;
